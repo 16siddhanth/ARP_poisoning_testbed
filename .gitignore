@@ -78,4 +78,8 @@ Thumbs.db
 
 # Results and output
 results/
+data/
 *.log
+
+# Generated files
+attack_comparison_results.json

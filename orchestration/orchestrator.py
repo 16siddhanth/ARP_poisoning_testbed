@@ -21,6 +21,7 @@ import sys
 import time
 import threading
 import argparse
+import base64
 from typing import Optional, Dict, List, Callable
 from datetime import datetime
 from dataclasses import dataclass
@@ -48,7 +49,7 @@ from metrics.analyzer import MetricsAnalyzer
 # Visualization imports
 from utils.visualizer import MetricsVisualizer
 
-from config.settings import ARPConfig, get_default_interface
+from config.settings import ARPConfig, get_default_interface, DEFAULT_ENCRYPTION_PASSWORD
 
 
 @dataclass
@@ -195,7 +196,7 @@ class ARPTestbedOrchestrator:
             )
             
         if self.config.use_encryption and not self._encryptor:
-            self._encryptor = MessageEncryption.from_password("testbed_demo_key")
+            self._encryptor = MessageEncryption.from_password(DEFAULT_ENCRYPTION_PASSWORD)
             
     def _handle_alert(self, alert: ARPAlert):
         """Handle ARP poisoning detection alert"""
@@ -222,7 +223,7 @@ class ARPTestbedOrchestrator:
             if self._current_phase == TestPhase.MITIGATED and self._encryptor:
                 # Encrypt message in mitigated phase
                 encrypted_bytes = self._encryptor.encrypt(message)
-                message = encrypted_bytes.decode('latin-1')  # Convert bytes to string for transmission
+                message = base64.b64encode(encrypted_bytes).decode('ascii')  # Safe string representation
                 
             if self._chat:
                 self._chat.send_message(message)

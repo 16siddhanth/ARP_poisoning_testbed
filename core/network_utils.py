@@ -308,6 +308,11 @@ def validate_interface(interface: str) -> bool:
     if not interface:
         return False
     
+    # Use netifaces directly for faster lookup if available
+    if NETIFACES_AVAILABLE:
+        return interface in netifaces.interfaces()
+    
+    # Fallback: check via get_interfaces
     interfaces = get_interfaces()
     for iface in interfaces:
         if iface.name == interface:
@@ -409,8 +414,14 @@ def get_arp_table() -> Dict[str, Dict[str, str]]:
                 if len(parts) >= 3:
                     # Format: 192.168.1.1    aa-bb-cc-dd-ee-ff    dynamic
                     ip = parts[0]
-                    # Validate IP format
-                    if not all(c in '0123456789.' for c in ip):
+                    # Validate IP format using proper check
+                    ip_parts = ip.split('.')
+                    if len(ip_parts) != 4:
+                        continue
+                    try:
+                        if not all(0 <= int(p) <= 255 for p in ip_parts):
+                            continue
+                    except ValueError:
                         continue
                     mac = parts[1].replace('-', ':')
                     entry_type = parts[2] if len(parts) > 2 else 'dynamic'

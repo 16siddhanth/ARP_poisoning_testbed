@@ -171,6 +171,9 @@ ENCRYPTION_ENABLED = False  # Set to True for encrypted chat mode
 KEY_DERIVATION_ITERATIONS = 100000
 SALT_LENGTH = 16
 
+# Default encryption password for demo/testing (override in production)
+DEFAULT_ENCRYPTION_PASSWORD = "testbed_demo_key"
+
 # =============================================================================
 # Safety Settings
 # =============================================================================
@@ -264,7 +267,7 @@ class ARPConfig:
             attack_mode: Attack mode ('request' or 'reply').
             forward_packets: Whether to forward packets during MITM.
         """
-        self.interface = interface or get_default_interface()
+        self.interface = interface if interface is not None else get_default_interface()
         self.spoof_interval = spoof_interval
         self.attack_mode = attack_mode
         self.forward_packets = forward_packets
