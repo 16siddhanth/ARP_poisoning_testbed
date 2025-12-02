@@ -19,13 +19,13 @@ from datetime import datetime
 sys.path.insert(0, '.')
 
 try:
-    from scapy.all import Ether, ARP, Raw, sendp, get_if_hwaddr, conf
+    from scapy.all import Ether, ARP, Raw, sendp, get_if_hwaddr, getmacbyip, conf
     SCAPY_AVAILABLE = True
 except ImportError:
     print("ERROR: Scapy not installed. Run: pip install scapy")
     sys.exit(1)
 
-from core.network_utils import get_interface_info, get_mac_address
+from core.network_utils import get_interface_info
 
 
 class SimpleChatSender:
@@ -44,8 +44,9 @@ class SimpleChatSender:
         self.our_mac = info.mac
         self.our_ip = info.ip
         
-        # Get target MAC
-        self.target_mac = get_mac_address(target_ip, interface)
+        # Get target MAC using ARP
+        print(f"Resolving MAC address for {target_ip}...")
+        self.target_mac = getmacbyip(target_ip)
         if not self.target_mac:
             print(f"Warning: Could not resolve MAC for {target_ip}, using broadcast")
             self.target_mac = "ff:ff:ff:ff:ff:ff"

