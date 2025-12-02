@@ -1,29 +1,29 @@
 {
-  "timestamp": "2025-12-02T18:38:36.856930",
+  "timestamp": "2025-12-02T16:01:08.037048",
   "phases": {
     "baseline": {
       "phase": "baseline",
       "total_messages": 60,
-      "delivered": 60,
-      "delivery_rate": 100.0,
+      "delivered": 59,
+      "delivery_rate": 98.33333333333333,
       "intercepted": 0,
       "interception_rate": 0.0,
-      "avg_latency_ms": 15.149914359588953,
-      "min_latency_ms": 8.474010377979099,
-      "max_latency_ms": 21.714103044300373,
-      "packet_loss": 0.0
+      "avg_latency_ms": 14.705104564848215,
+      "min_latency_ms": 6.963070722168871,
+      "max_latency_ms": 20.535019319483265,
+      "packet_loss": 1.6666666666666667
     },
     "attack": {
       "phase": "attack",
       "total_messages": 60,
-      "delivered": 37,
-      "delivery_rate": 61.66666666666667,
-      "intercepted": 42,
-      "interception_rate": 70.0,
-      "avg_latency_ms": 147.4174244425854,
+      "delivered": 38,
+      "delivery_rate": 63.33333333333333,
+      "intercepted": 38,
+      "interception_rate": 63.33333333333333,
+      "avg_latency_ms": 150.00663184195713,
       "min_latency_ms": 50,
-      "max_latency_ms": 212.97902886448668,
-      "packet_loss": 38.333333333333336
+      "max_latency_ms": 271.73984053322783,
+      "packet_loss": 36.666666666666664
     },
     "mitigated": {
       "phase": "mitigated",
@@ -32,9 +32,9 @@
       "delivery_rate": 93.33333333333333,
       "intercepted": 0,
       "interception_rate": 0.0,
-      "avg_latency_ms": 17.315529794316454,
-      "min_latency_ms": 8,
-      "max_latency_ms": 25.526276774350173,
+      "avg_latency_ms": 17.436805052464045,
+      "min_latency_ms": 9.743825950590352,
+      "max_latency_ms": 28.515915135960753,
       "packet_loss": 6.666666666666667
     }
   }

@@ -3,7 +3,7 @@
            ARP POISONING ATTACK & DEFENSE - EXPERIMENT REPORT
 ======================================================================
 
-Generated: 2025-12-02 18:38:38
+Generated: 2025-12-02 16:01:09
 
 EXECUTIVE SUMMARY
 ----------------------------------------------------------------------
@@ -13,10 +13,10 @@ network communication and the effectiveness of defensive measures.
 PHASE 1: BASELINE (Normal Operation)
 ----------------------------------------------------------------------
   Messages Sent:      60
-  Messages Delivered: 60
-  Delivery Rate:      100.0%
-  Average Latency:    15.15 ms
-  Packet Loss:        0.0%
+  Messages Delivered: 59
+  Delivery Rate:      98.3%
+  Average Latency:    14.71 ms
+  Packet Loss:        1.7%
   Interception Rate:  0.0%
   
   Status: Normal network operation. High delivery rate, low latency.
@@ -24,11 +24,11 @@ PHASE 1: BASELINE (Normal Operation)
 PHASE 2: UNDER ATTACK (ARP Poisoning Active)
 ----------------------------------------------------------------------
   Messages Sent:      60
-  Messages Delivered: 37
-  Delivery Rate:      61.7%  (↓38.3%)
-  Average Latency:    147.42 ms  (↑132.3ms)
-  Packet Loss:        38.3%  (↑38.3%)
-  Interception Rate:  70.0%
+  Messages Delivered: 38
+  Delivery Rate:      63.3%  (↓35.0%)
+  Average Latency:    150.01 ms  (↑135.3ms)
+  Packet Loss:        36.7%  (↑35.0%)
+  Interception Rate:  63.3%
   
   Status: CRITICAL - Attacker successfully intercepting traffic!
 
@@ -36,8 +36,8 @@ PHASE 3: MITIGATED (Defenses Active)
 ----------------------------------------------------------------------
   Messages Sent:      60
   Messages Delivered: 56
-  Delivery Rate:      93.3%  (↑31.7%)
-  Average Latency:    17.32 ms
+  Delivery Rate:      93.3%  (↑30.0%)
+  Average Latency:    17.44 ms
   Packet Loss:        6.7%
   Interception Rate:  0.0%
   
@@ -45,14 +45,14 @@ PHASE 3: MITIGATED (Defenses Active)
 
 ATTACK IMPACT SUMMARY
 ----------------------------------------------------------------------
-  Delivery Rate Drop:     38.3%
-  Latency Increase:       132.3 ms (873% increase)
-  Traffic Intercepted:    70.0%
+  Delivery Rate Drop:     35.0%
+  Latency Increase:       135.3 ms (920% increase)
+  Traffic Intercepted:    63.3%
   
 DEFENSE EFFECTIVENESS
 ----------------------------------------------------------------------
-  Recovery Rate:          93.3% of baseline
-  Interception Prevented: 70.0%
+  Recovery Rate:          94.9% of baseline
+  Interception Prevented: 63.3%
   Attack Blocked:         YES
 
 CONCLUSION
@@ -60,8 +60,8 @@ CONCLUSION
 The experiment demonstrates that:
 
 1. ARP poisoning attacks are HIGHLY EFFECTIVE without defenses
-   - 70% of traffic was intercepted
-   - Delivery rate dropped by 38%
+   - 63% of traffic was intercepted
+   - Delivery rate dropped by 35%
    
 2. Static ARP entries provide STRONG PROTECTION
    - Delivery rate recovered to 93%

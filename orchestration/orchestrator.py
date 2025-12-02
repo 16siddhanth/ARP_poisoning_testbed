@@ -31,7 +31,7 @@ from core.network_utils import (
     validate_interface, get_mac_address, get_ip_address
 )
 from core.arp_chat import ARPChat
-from core.encryption import MessageEncryptor
+from core.encryption import MessageEncryption
 
 # Attack imports
 from attacks.arp_spoofer import ARPSpoofer
@@ -130,7 +130,7 @@ class ARPTestbedOrchestrator:
         self._detector: Optional[ARPDetector] = None
         self._static_arp: Optional[StaticARPManager] = None
         self._inspector: Optional[ARPInspector] = None
-        self._encryptor: Optional[MessageEncryptor] = None
+        self._encryptor: Optional[MessageEncryption] = None
         
         # Metrics
         self.collector = MetricsCollector(
@@ -195,7 +195,7 @@ class ARPTestbedOrchestrator:
             )
             
         if self.config.use_encryption and not self._encryptor:
-            self._encryptor = MessageEncryptor(password="testbed_demo_key")
+            self._encryptor = MessageEncryption.from_password("testbed_demo_key")
             
     def _handle_alert(self, alert: ARPAlert):
         """Handle ARP poisoning detection alert"""
@@ -221,7 +221,8 @@ class ARPTestbedOrchestrator:
             
             if self._current_phase == TestPhase.MITIGATED and self._encryptor:
                 # Encrypt message in mitigated phase
-                message = self._encryptor.encrypt_message(message)
+                encrypted_bytes = self._encryptor.encrypt(message)
+                message = encrypted_bytes.decode('latin-1')  # Convert bytes to string for transmission
                 
             if self._chat:
                 self._chat.send_message(message)

@@ -185,3 +185,100 @@ MAX_ATTACK_DURATION = 300
 
 # Auto-restore ARP tables on exit
 AUTO_RESTORE_ARP = True
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def get_platform() -> str:
+    """
+    Get the current platform name.
+    
+    Returns:
+        Platform name: 'linux', 'darwin', or 'windows'.
+    """
+    return PLATFORM
+
+
+def get_default_interface() -> str:
+    """
+    Get the default network interface for the current platform.
+    
+    Returns:
+        Interface name as a string, or None if cannot be determined.
+    """
+    if INTERFACE:
+        return INTERFACE
+    
+    # Try to auto-detect based on platform
+    if IS_LINUX:
+        import subprocess
+        try:
+            result = subprocess.run(['ip', 'route', 'show', 'default'],
+                                   capture_output=True, text=True)
+            parts = result.stdout.split()
+            if 'dev' in parts:
+                idx = parts.index('dev')
+                return parts[idx + 1]
+        except Exception:
+            pass
+        return 'eth0'
+    elif IS_MACOS:
+        import subprocess
+        try:
+            result = subprocess.run(['route', '-n', 'get', 'default'],
+                                   capture_output=True, text=True)
+            for line in result.stdout.split('\n'):
+                if 'interface:' in line:
+                    return line.split(':')[1].strip()
+        except Exception:
+            pass
+        return 'en0'
+    elif IS_WINDOWS:
+        return 'Ethernet'
+    
+    return None
+
+
+class ARPConfig:
+    """
+    Configuration class for ARP operations.
+    
+    This class provides a convenient interface to access ARP-related settings.
+    """
+    
+    def __init__(
+        self,
+        interface: str = None,
+        spoof_interval: float = SPOOF_INTERVAL,
+        attack_mode: str = DEFAULT_ATTACK_MODE,
+        forward_packets: bool = FORWARD_PACKETS
+    ):
+        """
+        Initialize ARP configuration.
+        
+        Args:
+            interface: Network interface to use (auto-detected if None).
+            spoof_interval: Interval between spoofed ARP packets.
+            attack_mode: Attack mode ('request' or 'reply').
+            forward_packets: Whether to forward packets during MITM.
+        """
+        self.interface = interface or get_default_interface()
+        self.spoof_interval = spoof_interval
+        self.attack_mode = attack_mode
+        self.forward_packets = forward_packets
+    
+    @property
+    def is_valid(self) -> bool:
+        """Check if the configuration is valid."""
+        return self.interface is not None
+    
+    def to_dict(self) -> dict:
+        """Convert configuration to dictionary."""
+        return {
+            'interface': self.interface,
+            'spoof_interval': self.spoof_interval,
+            'attack_mode': self.attack_mode,
+            'forward_packets': self.forward_packets
+        }
