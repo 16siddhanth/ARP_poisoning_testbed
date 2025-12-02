@@ -219,6 +219,18 @@ def resolve_mac(ip_address: str, interface: str = None,
     Returns:
         MAC address string or None if resolution failed.
     """
+    # First, try to ping to populate ARP cache
+    system = platform.system().lower()
+    try:
+        if system == 'windows':
+            subprocess.run(['ping', '-n', '1', '-w', '1000', ip_address],
+                          capture_output=True, timeout=3)
+        else:
+            subprocess.run(['ping', '-c', '1', '-W', '1', ip_address],
+                          capture_output=True, timeout=3)
+    except:
+        pass
+    
     if not SCAPY_AVAILABLE:
         # Fallback: check ARP cache
         return _check_arp_cache(ip_address)
@@ -236,8 +248,13 @@ def resolve_mac(ip_address: str, interface: str = None,
         
         if answered:
             return answered[0][1].hwsrc
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DEBUG] ARP resolution error: {e}")
+    
+    # Fallback to ARP cache
+    mac = _check_arp_cache(ip_address)
+    if mac:
+        return mac
     
     return None
 
@@ -254,16 +271,33 @@ def _check_arp_cache(ip_address: str) -> Optional[str]:
             if 'lladdr' in parts:
                 idx = parts.index('lladdr')
                 return parts[idx + 1]
-        elif system in ('darwin', 'windows'):
+        elif system == 'darwin':
+            # macOS: use 'arp -n' or 'arp -a'
             result = subprocess.run(['arp', '-n', ip_address],
+                                   capture_output=True, text=True)
+            # If -n fails, try -a
+            if result.returncode != 0 or not result.stdout.strip():
+                result = subprocess.run(['arp', '-a'],
+                                       capture_output=True, text=True)
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                if ip_address in line:
+                    parts = line.split()
+                    for part in parts:
+                        # MAC address format: xx:xx:xx:xx:xx:xx
+                        if ':' in part and len(part) >= 11 and part.count(':') >= 4:
+                            return part
+        elif system == 'windows':
+            result = subprocess.run(['arp', '-a', ip_address],
                                    capture_output=True, text=True)
             lines = result.stdout.strip().split('\n')
             for line in lines:
                 if ip_address in line:
                     parts = line.split()
                     for part in parts:
-                        if ':' in part and len(part) >= 11:
-                            return part
+                        if '-' in part and len(part) >= 11:
+                            # Convert Windows format (xx-xx-xx-xx-xx-xx) to standard
+                            return part.replace('-', ':')
     except Exception:
         pass
     

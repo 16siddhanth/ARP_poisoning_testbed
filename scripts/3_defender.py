@@ -76,11 +76,34 @@ class ARPDefender:
         
         try:
             if self.platform == "darwin":  # macOS
-                cmd = ["sudo", "arp", "-s", ip, mac]
-                subprocess.run(cmd, check=True, capture_output=True)
+                # macOS: arp -s requires root, user should run script with sudo
+                cmd = ["arp", "-s", ip, mac]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    # Try with sudo if not root
+                    cmd = ["sudo", "arp", "-s", ip, mac]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"[✓] Static ARP entry added successfully")
+                    self.arp_table[ip] = mac
+                    return True
+                else:
+                    print(f"[!] Failed to add static ARP entry: {result.stderr}")
+                    print(f"[!] Try running with: sudo python scripts/3_defender.py ...")
+                    return False
             elif self.platform == "linux":
-                cmd = ["sudo", "arp", "-s", ip, mac]
-                subprocess.run(cmd, check=True, capture_output=True)
+                cmd = ["arp", "-s", ip, mac]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    cmd = ["sudo", "arp", "-s", ip, mac]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"[✓] Static ARP entry added successfully")
+                    self.arp_table[ip] = mac
+                    return True
+                else:
+                    print(f"[!] Failed: {result.stderr}")
+                    return False
             elif self.platform == "windows":
                 # Windows: use netsh with interface index or arp -s
                 # First try to get interface name from index
@@ -136,16 +159,28 @@ class ARPDefender:
         
         try:
             if self.platform == "darwin":
-                cmd = ["sudo", "arp", "-d", ip]
+                cmd = ["arp", "-d", ip]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    cmd = ["sudo", "arp", "-d", ip]
+                    subprocess.run(cmd, capture_output=True, text=True)
             elif self.platform == "linux":
-                cmd = ["sudo", "arp", "-d", ip]
+                cmd = ["arp", "-d", ip]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    cmd = ["sudo", "arp", "-d", ip]
+                    subprocess.run(cmd, capture_output=True, text=True)
             elif self.platform == "windows":
-                cmd = ["netsh", "interface", "ip", "delete", "neighbors",
-                       self.interface, ip]
+                # Try common interface names
+                for iface_name in ["Wi-Fi", "Ethernet", "Local Area Connection"]:
+                    try:
+                        cmd = ["netsh", "interface", "ip", "delete", "neighbors", iface_name, ip]
+                        subprocess.run(cmd, capture_output=True, text=True)
+                    except:
+                        pass
             else:
                 return False
                 
-            subprocess.run(cmd, check=True, capture_output=True)
             print(f"[✓] Static ARP entry removed")
             return True
         except:
@@ -227,6 +262,11 @@ class ARPDefender:
         
     def packet_handler(self, packet):
         """Handle sniffed packets."""
+        # Debug: show we're receiving packets
+        if packet.haslayer(ARP):
+            arp = packet[ARP]
+            if arp.op == 2:  # ARP Reply
+                print(f"[DEBUG] ARP Reply: {arp.psrc} is at {arp.hwsrc}")
         self.detect_spoofing(packet)
         
     def start(self):
@@ -238,14 +278,16 @@ class ARPDefender:
             self.add_static_arp(self.protected_ip, self.protected_mac)
             
         print("[*] Starting ARP monitoring...")
+        print("[*] Listening for ARP packets (promiscuous mode)...")
         print("[*] Press Ctrl+C to stop\n")
         
         try:
+            # Note: removed "arp" filter for Windows compatibility
             sniff(
                 iface=self.interface,
                 prn=self.packet_handler,
-                filter="arp",
-                store=False
+                store=False,
+                promisc=True
             )
         except KeyboardInterrupt:
             self.running = False
