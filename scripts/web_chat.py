@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Web-based ARP Chat Interface
 
 Provides a web UI for sending and receiving ARP chat messages.
@@ -10,10 +10,10 @@ Usage:
     Receiver: python scripts/web_chat.py -i <interface> --mode receiver
     Attacker: python scripts/web_chat.py -i <interface> -v <victim1_ip> -g <victim2_ip> --mode attacker
     
-Examples:
-    python scripts/web_chat.py -i "\Device\NPF_{744EB904-71EE-46B0-A10D-0E3505BE2D2C}" --mode receiver
-    python scripts/web_chat.py -i "\Device\NPF_{744EB904-71EE-46B0-A10D-0E3505BE2D2C}" -t 172.20.10.20 --mode sender
-    python scripts/web_chat.py -i "\Device\NPF_{744EB904-71EE-46B0-A10D-0E3505BE2D2C}" -v 172.20.10.10 -g 172.20.10.20 --mode attacker
+Examples (Windows):
+    python scripts/web_chat.py -i "\Device\NPF_{GUID}" --mode receiver
+    python scripts/web_chat.py -i "\Device\NPF_{GUID}" -t 172.20.10.20 --mode sender
+    python scripts/web_chat.py -i "\Device\NPF_{GUID}" -v 172.20.10.10 -g 172.20.10.20 --mode attacker
 """
 
 import sys
