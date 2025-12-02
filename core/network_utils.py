@@ -295,6 +295,147 @@ def is_same_network(ip1: str, ip2: str, netmask: str) -> bool:
     return get_network_address(ip1, netmask) == get_network_address(ip2, netmask)
 
 
+def validate_interface(interface: str) -> bool:
+    """
+    Validate that a network interface exists and is usable.
+    
+    Args:
+        interface: Interface name to validate.
+    
+    Returns:
+        True if interface is valid, False otherwise.
+    """
+    if not interface:
+        return False
+    
+    # Use netifaces directly for faster lookup if available
+    if NETIFACES_AVAILABLE:
+        return interface in netifaces.interfaces()
+    
+    # Fallback: check via get_interfaces
+    interfaces = get_interfaces()
+    for iface in interfaces:
+        if iface.name == interface:
+            return True
+    return False
+
+
+def get_gateway_info(interface: str = None) -> Optional[Dict[str, str]]:
+    """
+    Get gateway information including IP and MAC address.
+    
+    Args:
+        interface: Optional interface name to get gateway for.
+    
+    Returns:
+        Dictionary with 'ip' and optionally 'mac' keys, or None if not found.
+    """
+    gateway_ip = get_gateway(interface)
+    if not gateway_ip:
+        return None
+    
+    result = {'ip': gateway_ip}
+    
+    # Try to get gateway MAC from ARP cache or via ARP request
+    gateway_mac = resolve_mac(gateway_ip, interface)
+    if gateway_mac:
+        result['mac'] = gateway_mac
+    
+    return result
+
+
+def get_arp_table() -> Dict[str, Dict[str, str]]:
+    """
+    Get the current system ARP table.
+    
+    Returns:
+        Dictionary mapping IP addresses to their info (mac, type, interface).
+        Example: {'192.168.1.1': {'mac': 'aa:bb:cc:dd:ee:ff', 'type': 'dynamic'}}
+    """
+    arp_entries = {}
+    system = platform.system().lower()
+    
+    try:
+        if system == 'linux':
+            result = subprocess.run(['ip', 'neigh', 'show'],
+                                   capture_output=True, text=True)
+            for line in result.stdout.strip().split('\n'):
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 4 and 'lladdr' in parts:
+                    ip = parts[0]
+                    idx = parts.index('lladdr')
+                    mac = parts[idx + 1]
+                    entry_type = 'dynamic'
+                    if 'PERMANENT' in parts:
+                        entry_type = 'static'
+                    arp_entries[ip] = {
+                        'mac': mac,
+                        'type': entry_type,
+                        'interface': parts[2] if 'dev' in parts else ''
+                    }
+        elif system == 'darwin':
+            result = subprocess.run(['arp', '-an'],
+                                   capture_output=True, text=True)
+            for line in result.stdout.strip().split('\n'):
+                if not line or 'incomplete' in line:
+                    continue
+                # Format: ? (192.168.1.1) at aa:bb:cc:dd:ee:ff on en0 ifscope [ethernet]
+                parts = line.split()
+                if len(parts) >= 4 and 'at' in parts:
+                    # Extract IP from parentheses
+                    ip_part = parts[1]
+                    if ip_part.startswith('(') and ip_part.endswith(')'):
+                        ip = ip_part[1:-1]
+                    else:
+                        continue
+                    idx = parts.index('at')
+                    if idx + 1 < len(parts):
+                        mac = parts[idx + 1]
+                        entry_type = 'static' if 'permanent' in line.lower() else 'dynamic'
+                        interface = ''
+                        if 'on' in parts:
+                            on_idx = parts.index('on')
+                            if on_idx + 1 < len(parts):
+                                interface = parts[on_idx + 1]
+                        arp_entries[ip] = {
+                            'mac': mac,
+                            'type': entry_type,
+                            'interface': interface
+                        }
+        elif system == 'windows':
+            result = subprocess.run(['arp', '-a'],
+                                   capture_output=True, text=True)
+            for line in result.stdout.strip().split('\n'):
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 3:
+                    # Format: 192.168.1.1    aa-bb-cc-dd-ee-ff    dynamic
+                    ip = parts[0]
+                    # Validate IP format using proper check
+                    ip_parts = ip.split('.')
+                    if len(ip_parts) != 4:
+                        continue
+                    try:
+                        if not all(0 <= int(p) <= 255 for p in ip_parts):
+                            continue
+                    except ValueError:
+                        continue
+                    mac = parts[1].replace('-', ':')
+                    entry_type = parts[2] if len(parts) > 2 else 'dynamic'
+                    arp_entries[ip] = {
+                        'mac': mac,
+                        'type': entry_type,
+                        'interface': ''
+                    }
+    except Exception:
+        pass
+    
+    return arp_entries
+
+
 def print_interfaces():
     """Print available network interfaces in a formatted way."""
     interfaces = get_interfaces()

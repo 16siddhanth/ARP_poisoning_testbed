@@ -21,6 +21,7 @@ import sys
 import time
 import threading
 import argparse
+import base64
 from typing import Optional, Dict, List, Callable
 from datetime import datetime
 from dataclasses import dataclass
@@ -31,7 +32,7 @@ from core.network_utils import (
     validate_interface, get_mac_address, get_ip_address
 )
 from core.arp_chat import ARPChat
-from core.encryption import MessageEncryptor
+from core.encryption import MessageEncryption
 
 # Attack imports
 from attacks.arp_spoofer import ARPSpoofer
@@ -48,7 +49,7 @@ from metrics.analyzer import MetricsAnalyzer
 # Visualization imports
 from utils.visualizer import MetricsVisualizer
 
-from config.settings import ARPConfig, get_default_interface
+from config.settings import ARPConfig, get_default_interface, DEFAULT_ENCRYPTION_PASSWORD
 
 
 @dataclass
@@ -130,7 +131,7 @@ class ARPTestbedOrchestrator:
         self._detector: Optional[ARPDetector] = None
         self._static_arp: Optional[StaticARPManager] = None
         self._inspector: Optional[ARPInspector] = None
-        self._encryptor: Optional[MessageEncryptor] = None
+        self._encryptor: Optional[MessageEncryption] = None
         
         # Metrics
         self.collector = MetricsCollector(
@@ -195,7 +196,7 @@ class ARPTestbedOrchestrator:
             )
             
         if self.config.use_encryption and not self._encryptor:
-            self._encryptor = MessageEncryptor(password="testbed_demo_key")
+            self._encryptor = MessageEncryption.from_password(DEFAULT_ENCRYPTION_PASSWORD)
             
     def _handle_alert(self, alert: ARPAlert):
         """Handle ARP poisoning detection alert"""
@@ -221,7 +222,8 @@ class ARPTestbedOrchestrator:
             
             if self._current_phase == TestPhase.MITIGATED and self._encryptor:
                 # Encrypt message in mitigated phase
-                message = self._encryptor.encrypt_message(message)
+                encrypted_bytes = self._encryptor.encrypt(message)
+                message = base64.b64encode(encrypted_bytes).decode('ascii')  # Safe string representation
                 
             if self._chat:
                 self._chat.send_message(message)

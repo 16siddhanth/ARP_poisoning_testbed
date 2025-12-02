@@ -52,14 +52,13 @@ def list_interfaces():
     
     interfaces = get_interfaces()
     for iface in interfaces:
-        info = get_interface_info(iface)
-        if info and info.get('ip'):
-            print(f"  {iface}:")
-            print(f"    IP: {info['ip']}")
-            print(f"    MAC: {info['mac']}")
-            print(f"    Netmask: {info.get('netmask', 'N/A')}")
+        if iface and iface.ip:
+            print(f"  {iface.name}:")
+            print(f"    IP: {iface.ip}")
+            print(f"    MAC: {iface.mac}")
+            print(f"    Netmask: {iface.netmask or 'N/A'}")
             
-            gw = get_gateway_info(iface)
+            gw = get_gateway_info(iface.name)
             if gw:
                 print(f"    Gateway: {gw['ip']}")
             print()
@@ -207,8 +206,8 @@ def run_full_demo(interface: str, target_ip: str):
         
     info = get_interface_info(interface)
     print(f"Using interface: {interface}")
-    print(f"  IP: {info['ip']}")
-    print(f"  MAC: {info['mac']}")
+    print(f"  IP: {info.ip}")
+    print(f"  MAC: {info.mac}")
     
     gw = get_gateway_info(interface)
     if gw:
