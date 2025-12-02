@@ -41,6 +41,41 @@ except ImportError:
 
 from core.network_utils import get_interface_info, resolve_mac
 
+# Simple encryption using Fernet (symmetric encryption)
+try:
+    from cryptography.fernet import Fernet
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
+    print("WARNING: cryptography not installed. Encryption disabled. Run: pip install cryptography")
+
+# Shared encryption key (in real scenario, this would be exchanged securely)
+ENCRYPTION_KEY = b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='  # Base64 encoded key
+
+def encrypt_message(message: str) -> str:
+    """Encrypt a message using Fernet symmetric encryption."""
+    if not CRYPTO_AVAILABLE:
+        return message
+    try:
+        f = Fernet(ENCRYPTION_KEY)
+        encrypted = f.encrypt(message.encode())
+        return encrypted.decode()
+    except Exception as e:
+        print(f"Encryption error: {e}")
+        return message
+
+def decrypt_message(encrypted_message: str) -> str:
+    """Decrypt a message using Fernet symmetric encryption."""
+    if not CRYPTO_AVAILABLE:
+        return encrypted_message
+    try:
+        f = Fernet(ENCRYPTION_KEY)
+        decrypted = f.decrypt(encrypted_message.encode())
+        return decrypted.decode()
+    except Exception as e:
+        # Return original if decryption fails (message wasn't encrypted)
+        return encrypted_message
+
 app = Flask(__name__)
 
 # Global state
@@ -53,6 +88,8 @@ chat_state = {
     'our_mac': '00:00:00:00:00:00',
     'messages': [],
     'message_queue': Queue(),
+    # Encryption
+    'encryption_enabled': False,
     # Attacker mode specific
     'victim1_ip': None,
     'victim1_mac': None,
@@ -257,6 +294,10 @@ ATTACKER_TEMPLATE = '''
             border-left-color: #ff0000;
             background: rgba(255, 0, 0, 0.1);
         }
+        .packet.encrypted {
+            border-left-color: #9C27B0;
+            background: rgba(156, 39, 176, 0.1);
+        }
         .packet .header {
             display: flex;
             justify-content: space-between;
@@ -273,9 +314,15 @@ ATTACKER_TEMPLATE = '''
             font-size: 0.8rem;
         }
         .packet.chat-msg .type { background: #ff0000; }
+        .packet.encrypted .type { background: #9C27B0; }
         .packet .content {
             color: #fff;
             word-break: break-all;
+        }
+        .packet.encrypted .content {
+            font-family: monospace;
+            color: #9C27B0;
+            font-size: 0.85rem;
         }
         .packet .meta {
             color: #666;
@@ -397,7 +444,14 @@ ATTACKER_TEMPLATE = '''
             if (noPackets) noPackets.remove();
 
             const div = document.createElement('div');
-            div.className = 'packet' + (pkt.is_chat ? ' chat-msg' : '');
+            let classes = 'packet';
+            if (pkt.encrypted) {
+                classes += ' encrypted';
+            } else if (pkt.is_chat) {
+                classes += ' chat-msg';
+            }
+            div.className = classes;
+            
             div.innerHTML = `
                 <div class="header">
                     <span class="time">${pkt.time}</span>
@@ -491,8 +545,71 @@ HTML_TEMPLATE = '''
             margin-top: 8px;
             font-family: monospace;
         }
+        .encryption-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid #2d2d44;
+        }
+        .encryption-toggle label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            box-shadow: 0 0 10px #4CAF50;
+        }
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        .encryption-status {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .encryption-status.on {
+            background: #4CAF50;
+            color: white;
+        }
+        .encryption-status.off {
+            background: #f44336;
+            color: white;
+        }
         .chat-messages {
-            height: 400px;
+            height: 350px;
             overflow-y: auto;
             padding: 20px;
             background: #1a1a2e;
@@ -540,6 +657,14 @@ HTML_TEMPLATE = '''
             font-size: 0.7rem;
             color: #888;
             margin-top: 4px;
+        }
+        .message-info .encrypted-badge {
+            background: #4CAF50;
+            color: white;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            margin-left: 5px;
         }
         .chat-input {
             display: flex;
@@ -615,6 +740,18 @@ HTML_TEMPLATE = '''
             </div>
         </div>
         
+        {% if mode == 'sender' %}
+        <div class="encryption-toggle">
+            <label>🔓 Unencrypted</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="encryption-toggle" onchange="toggleEncryption()">
+                <span class="toggle-slider"></span>
+            </label>
+            <label>🔒 Encrypted</label>
+            <span class="encryption-status off" id="encryption-status">OFF</span>
+        </div>
+        {% endif %}
+        
         <div class="chat-messages" id="messages">
             <div class="no-messages" id="no-messages">
                 <div class="icon">💬</div>
@@ -631,6 +768,27 @@ HTML_TEMPLATE = '''
     <script>
         const mode = "{{ mode }}";
         let messages = [];
+        let encryptionEnabled = false;
+
+        function toggleEncryption() {
+            const checkbox = document.getElementById('encryption-toggle');
+            encryptionEnabled = checkbox.checked;
+            const status = document.getElementById('encryption-status');
+            if (encryptionEnabled) {
+                status.textContent = 'ON';
+                status.className = 'encryption-status on';
+            } else {
+                status.textContent = 'OFF';
+                status.className = 'encryption-status off';
+            }
+            
+            // Notify server
+            fetch('/encryption/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: encryptionEnabled })
+            });
+        }
 
         function addMessage(msg) {
             const container = document.getElementById('messages');
@@ -645,9 +803,11 @@ HTML_TEMPLATE = '''
                 senderInfo = msg.type === 'sent' ? 'You' : msg.sender_ip;
             }
             
+            const encryptedBadge = msg.encrypted ? '<span class="encrypted-badge">🔒 ENCRYPTED</span>' : '';
+            
             div.innerHTML = `
                 <div class="message-bubble">${escapeHtml(msg.text)}</div>
-                <div class="message-info">${msg.time} ${senderInfo ? '• ' + senderInfo : ''}</div>
+                <div class="message-info">${msg.time} ${senderInfo ? '• ' + senderInfo : ''} ${encryptedBadge}</div>
             `;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
@@ -667,7 +827,7 @@ HTML_TEMPLATE = '''
             fetch('/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
+                body: JSON.stringify({ message: text, encrypted: encryptionEnabled })
             })
             .then(res => res.json())
             .then(data => {
@@ -675,7 +835,8 @@ HTML_TEMPLATE = '''
                     addMessage({
                         type: 'sent',
                         text: text,
-                        time: new Date().toLocaleTimeString()
+                        time: new Date().toLocaleTimeString(),
+                        encrypted: encryptionEnabled
                     });
                     input.value = '';
                 } else {
@@ -738,13 +899,20 @@ def send_message():
     
     data = request.get_json()
     message = data.get('message', '').strip()
+    use_encryption = data.get('encrypted', False)
     
     if not message:
         return jsonify({'success': False, 'error': 'Empty message'})
     
     try:
-        # Build and send the packet
-        payload = f"ARPCHAT|{chat_state['our_ip']}|{message}"
+        # Encrypt message if encryption is enabled
+        if use_encryption and CRYPTO_AVAILABLE:
+            encrypted_msg = encrypt_message(message)
+            # Mark as encrypted with prefix
+            payload = f"ARPCHAT_ENC|{chat_state['our_ip']}|{encrypted_msg}"
+        else:
+            payload = f"ARPCHAT|{chat_state['our_ip']}|{message}"
+        
         packet = Ether(
             src=chat_state['our_mac'],
             dst=chat_state['target_mac'],
@@ -756,6 +924,13 @@ def send_message():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/encryption/toggle', methods=['POST'])
+def toggle_encryption():
+    data = request.get_json()
+    chat_state['encryption_enabled'] = data.get('enabled', False)
+    return jsonify({'success': True, 'enabled': chat_state['encryption_enabled']})
 
 
 @app.route('/messages')
@@ -836,22 +1011,44 @@ def attacker_packet_handler(packet):
         if packet.haslayer(Ether) and packet[Ether].type == ETHER_TYPE:
             if packet.haslayer(Raw):
                 data = packet[Raw].load.decode()
-                if data.startswith("ARPCHAT|"):
+                
+                # Check for encrypted messages
+                if data.startswith("ARPCHAT_ENC|"):
+                    parts = data.split("|", 2)
+                    if len(parts) >= 3:
+                        # Show the encrypted gibberish - attacker cannot read it!
+                        pkt_info = {
+                            'id': len(chat_state['intercepted_packets']) + 1,
+                            'time': timestamp,
+                            'type': '🔒 ENCRYPTED MSG',
+                            'content': f"[{parts[1]}]: {parts[2][:50]}..." if len(parts[2]) > 50 else f"[{parts[1]}]: {parts[2]}",
+                            'src_ip': parts[1],
+                            'dst_ip': 'broadcast',
+                            'src_mac': packet[Ether].src,
+                            'is_chat': True,
+                            'encrypted': True
+                        }
+                        chat_state['intercepted_packets'].append(pkt_info)
+                        chat_state['packets_intercepted'] += 1
+                        print(f"[INTERCEPTED] Encrypted: {parts[1]} -> [CANNOT DECRYPT]")
+                
+                elif data.startswith("ARPCHAT|"):
                     parts = data.split("|", 2)
                     if len(parts) >= 3:
                         pkt_info = {
                             'id': len(chat_state['intercepted_packets']) + 1,
                             'time': timestamp,
-                            'type': '💬 CHAT MESSAGE',
+                            'type': '💬 PLAINTEXT MSG',
                             'content': f"[{parts[1]}]: {parts[2]}",
                             'src_ip': parts[1],
                             'dst_ip': 'broadcast',
                             'src_mac': packet[Ether].src,
-                            'is_chat': True
+                            'is_chat': True,
+                            'encrypted': False
                         }
                         chat_state['intercepted_packets'].append(pkt_info)
                         chat_state['packets_intercepted'] += 1
-                        print(f"[INTERCEPTED] Chat: {parts[1]} -> {parts[2]}")
+                        print(f"[INTERCEPTED] Plaintext: {parts[1]} -> {parts[2]}")
         
         # Also capture regular traffic between victims
         elif packet.haslayer(Ether):
@@ -883,7 +1080,30 @@ def packet_handler(packet):
         if packet.haslayer(Raw):
             try:
                 data = packet[Raw].load.decode()
-                if data.startswith("ARPCHAT|"):
+                
+                # Handle encrypted messages
+                if data.startswith("ARPCHAT_ENC|"):
+                    parts = data.split("|", 2)
+                    if len(parts) >= 3:
+                        sender_ip = parts[1]
+                        encrypted_text = parts[2]
+                        timestamp = datetime.now().strftime("%H:%M:%S")
+                        
+                        # Decrypt the message
+                        decrypted_text = decrypt_message(encrypted_text)
+                        
+                        msg = {
+                            'id': len(chat_state['messages']) + 1,
+                            'type': 'received',
+                            'text': decrypted_text,
+                            'sender_ip': sender_ip,
+                            'time': timestamp,
+                            'encrypted': True
+                        }
+                        chat_state['messages'].append(msg)
+                        print(f"[{timestamp}] 🔒 FROM {sender_ip}: {decrypted_text}")
+                
+                elif data.startswith("ARPCHAT|"):
                     parts = data.split("|", 2)
                     if len(parts) >= 3:
                         sender_ip = parts[1]
@@ -895,7 +1115,8 @@ def packet_handler(packet):
                             'type': 'received',
                             'text': message_text,
                             'sender_ip': sender_ip,
-                            'time': timestamp
+                            'time': timestamp,
+                            'encrypted': False
                         }
                         chat_state['messages'].append(msg)
                         print(f"[{timestamp}] FROM {sender_ip}: {message_text}")

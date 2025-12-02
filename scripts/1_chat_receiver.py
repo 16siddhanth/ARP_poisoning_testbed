@@ -26,6 +26,15 @@ except ImportError:
 
 from core.network_utils import get_interface_info
 
+# Try to import encryption
+try:
+    from core.encryption import MessageEncryption, CRYPTO_AVAILABLE
+except ImportError:
+    CRYPTO_AVAILABLE = False
+
+# Shared key for demo (in production, use key exchange)
+SHARED_KEY = b'ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg='
+
 
 class SimpleChatReceiver:
     """Simple ARP-based message receiver for demo."""
@@ -34,6 +43,12 @@ class SimpleChatReceiver:
     
     def __init__(self, interface: str):
         self.interface = interface
+        
+        # Initialize decryption
+        if CRYPTO_AVAILABLE:
+            self.decryptor = MessageEncryption(SHARED_KEY)
+        else:
+            self.decryptor = None
         
         info = get_interface_info(interface)
         if not info:
@@ -47,6 +62,7 @@ class SimpleChatReceiver:
         print(f"  Interface: {interface}")
         print(f"  Our IP:    {self.our_ip}")
         print(f"  Our MAC:   {self.our_mac}")
+        print(f"  Decryption: {'🔒 AVAILABLE' if CRYPTO_AVAILABLE else '🔓 NOT AVAILABLE'}")
         print(f"  Listening for ARP Chat messages...")
         print(f"{'='*60}\n")
         
@@ -56,7 +72,26 @@ class SimpleChatReceiver:
             if packet.haslayer(Raw):
                 try:
                     data = packet[Raw].load.decode()
-                    if data.startswith("ARPCHAT|"):
+                    
+                    # Handle encrypted messages
+                    if data.startswith("ARPCHAT_ENC|"):
+                        parts = data.split("|", 2)
+                        if len(parts) >= 3:
+                            sender_ip = parts[1]
+                            encrypted_msg = parts[2]
+                            timestamp = datetime.now().strftime("%H:%M:%S")
+                            
+                            if self.decryptor:
+                                try:
+                                    message = self.decryptor.decrypt(encrypted_msg.encode())
+                                    print(f"[{timestamp}] 🔒 FROM {sender_ip}: {message}")
+                                except Exception as e:
+                                    print(f"[{timestamp}] ⚠️ FROM {sender_ip}: [DECRYPTION FAILED]")
+                            else:
+                                print(f"[{timestamp}] ⚠️ FROM {sender_ip}: [ENCRYPTED - NO KEY]")
+                    
+                    # Handle plaintext messages
+                    elif data.startswith("ARPCHAT|"):
                         parts = data.split("|", 2)
                         if len(parts) >= 3:
                             sender_ip = parts[1]
@@ -85,6 +120,10 @@ def main():
     parser = argparse.ArgumentParser(description="ARP Chat Receiver")
     parser.add_argument("-i", "--interface", required=True, help="Network interface")
     args = parser.parse_args()
+    
+    if not CRYPTO_AVAILABLE:
+        print("WARNING: cryptography not installed. Encrypted messages cannot be decrypted.")
+        print("Install with: pip install cryptography\n")
     
     receiver = SimpleChatReceiver(args.interface)
     receiver.start()
