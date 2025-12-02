@@ -127,15 +127,15 @@ ATTACKER_TEMPLATE = '''
             z-index: -1;
         }
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
         .header {
             text-align: center;
-            padding: 30px;
+            padding: 20px;
             border-bottom: 2px solid #00ff00;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         .header h1 {
             font-size: 2.5rem;
@@ -153,42 +153,46 @@ ATTACKER_TEMPLATE = '''
         }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
         }
         .stat-card {
             background: rgba(0, 255, 0, 0.1);
             border: 1px solid #00ff00;
             border-radius: 10px;
-            padding: 20px;
+            padding: 15px;
             text-align: center;
         }
         .stat-card .value {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: bold;
             color: #00ff00;
         }
         .stat-card .label {
             color: #888;
             margin-top: 5px;
+            font-size: 0.85rem;
         }
         .stat-card.danger { border-color: #ff0000; }
         .stat-card.danger .value { color: #ff0000; }
+        .stat-card.encrypted { border-color: #9C27B0; }
+        .stat-card.encrypted .value { color: #9C27B0; }
         .control-panel {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #00ff00;
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
         .control-panel h2 {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #00ff00;
+            font-size: 1.1rem;
         }
         .btn {
-            padding: 15px 30px;
-            font-size: 1.1rem;
+            padding: 12px 25px;
+            font-size: 1rem;
             font-family: 'Courier New', monospace;
             border: 2px solid;
             border-radius: 5px;
@@ -225,24 +229,24 @@ ATTACKER_TEMPLATE = '''
             color: #000;
         }
         .victims-info {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
+            display: flex;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
         }
         .victim-card {
             background: rgba(255, 0, 0, 0.1);
             border: 1px solid #ff0000;
             border-radius: 10px;
-            padding: 15px;
+            padding: 10px 20px;
             text-align: center;
         }
-        .victim-card h3 { color: #ff0000; margin-bottom: 10px; }
-        .victim-card .ip { font-size: 1.2rem; color: #fff; }
-        .victim-card .mac { font-size: 0.8rem; color: #888; }
+        .victim-card h3 { color: #ff0000; margin-bottom: 5px; font-size: 0.9rem; }
+        .victim-card .ip { font-size: 1rem; color: #fff; }
+        .victim-card .mac { font-size: 0.7rem; color: #888; }
         .arrow {
-            font-size: 2rem;
+            font-size: 1.5rem;
             color: #ff0000;
             animation: arrowPulse 1s infinite;
         }
@@ -250,24 +254,35 @@ ATTACKER_TEMPLATE = '''
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+        
+        /* Two-column layout for intercepted traffic */
+        .intercepted-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
         .intercepted-section {
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid #00ff00;
             border-radius: 10px;
-            padding: 20px;
+            padding: 15px;
+        }
+        .intercepted-section.messages {
+            border-color: #ff0000;
         }
         .intercepted-section h2 {
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             gap: 10px;
+            font-size: 1rem;
         }
         .intercepted-section h2 .live {
             background: #ff0000;
             color: #fff;
             padding: 2px 8px;
             border-radius: 3px;
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             animation: blink 1s infinite;
         }
         @keyframes blink {
@@ -275,14 +290,14 @@ ATTACKER_TEMPLATE = '''
             50% { opacity: 0; }
         }
         .packets-list {
-            max-height: 400px;
+            max-height: 450px;
             overflow-y: auto;
         }
         .packet {
             background: rgba(0, 255, 0, 0.05);
             border-left: 3px solid #00ff00;
-            padding: 15px;
-            margin-bottom: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
             border-radius: 0 5px 5px 0;
             animation: slideIn 0.3s ease;
         }
@@ -290,7 +305,7 @@ ATTACKER_TEMPLATE = '''
             from { opacity: 0; transform: translateX(-20px); }
             to { opacity: 1; transform: translateX(0); }
         }
-        .packet.chat-msg {
+        .packet.plaintext {
             border-left-color: #ff0000;
             background: rgba(255, 0, 0, 0.1);
         }
@@ -298,45 +313,103 @@ ATTACKER_TEMPLATE = '''
             border-left-color: #9C27B0;
             background: rgba(156, 39, 176, 0.1);
         }
-        .packet .header {
+        .packet .pkt-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            border-bottom: none;
-            padding: 0;
+            margin-bottom: 5px;
         }
-        .packet .time { color: #888; }
+        .packet .time { color: #888; font-size: 0.8rem; }
         .packet .type { 
             background: #00ff00;
             color: #000;
             padding: 2px 8px;
             border-radius: 3px;
-            font-size: 0.8rem;
+            font-size: 0.7rem;
         }
-        .packet.chat-msg .type { background: #ff0000; }
+        .packet.plaintext .type { background: #ff0000; }
         .packet.encrypted .type { background: #9C27B0; }
         .packet .content {
             color: #fff;
             word-break: break-all;
+            font-size: 0.9rem;
         }
         .packet.encrypted .content {
             font-family: monospace;
             color: #9C27B0;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         .packet .meta {
             color: #666;
-            font-size: 0.85rem;
-            margin-top: 8px;
+            font-size: 0.75rem;
+            margin-top: 5px;
         }
         .no-packets {
             text-align: center;
             color: #666;
-            padding: 50px;
+            padding: 40px 20px;
         }
         .terminal-cursor::after {
             content: '█';
             animation: blink 1s infinite;
+        }
+        
+        /* Message-specific styles */
+        .message-item {
+            background: rgba(255, 0, 0, 0.05);
+            border-left: 3px solid #ff0000;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 0 5px 5px 0;
+            animation: slideIn 0.3s ease;
+        }
+        .message-item.encrypted {
+            border-left-color: #9C27B0;
+            background: rgba(156, 39, 176, 0.1);
+        }
+        .message-item .msg-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .message-item .sender {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .message-item.encrypted .sender {
+            color: #9C27B0;
+        }
+        .message-item .msg-time {
+            color: #666;
+            font-size: 0.8rem;
+        }
+        .message-item .msg-content {
+            color: #fff;
+            font-size: 1rem;
+            padding: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+            word-break: break-all;
+        }
+        .message-item.encrypted .msg-content {
+            color: #9C27B0;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+        .message-item .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin-top: 8px;
+        }
+        .message-item .status-badge.vulnerable {
+            background: #ff0000;
+            color: #fff;
+        }
+        .message-item .status-badge.protected {
+            background: #9C27B0;
+            color: #fff;
         }
     </style>
 </head>
@@ -350,16 +423,16 @@ ATTACKER_TEMPLATE = '''
 
         <div class="stats-grid">
             <div class="stat-card danger">
-                <div class="value" id="packets-intercepted">0</div>
-                <div class="label">Packets Intercepted</div>
+                <div class="value" id="plaintext-count">0</div>
+                <div class="label">⚠️ Plaintext (EXPOSED)</div>
+            </div>
+            <div class="stat-card encrypted">
+                <div class="value" id="encrypted-count">0</div>
+                <div class="label">🔒 Encrypted (PROTECTED)</div>
             </div>
             <div class="stat-card">
                 <div class="value" id="arp-spoofs">0</div>
                 <div class="label">ARP Spoofs Sent</div>
-            </div>
-            <div class="stat-card">
-                <div class="value" id="messages-captured">0</div>
-                <div class="label">Chat Messages Captured</div>
             </div>
             <div class="stat-card">
                 <div class="value" id="attack-status">READY</div>
@@ -390,11 +463,24 @@ ATTACKER_TEMPLATE = '''
             </button>
         </div>
 
-        <div class="intercepted-section">
-            <h2>📡 Intercepted Traffic <span class="live">LIVE</span></h2>
-            <div class="packets-list" id="packets-list">
-                <div class="no-packets" id="no-packets">
-                    <p>Waiting for traffic...<span class="terminal-cursor"></span></p>
+        <div class="intercepted-grid">
+            <!-- Left Column: Intercepted Chat Messages -->
+            <div class="intercepted-section messages">
+                <h2>💬 Intercepted Messages <span class="live">LIVE</span></h2>
+                <div class="packets-list" id="messages-list">
+                    <div class="no-packets" id="no-messages">
+                        <p>No chat messages intercepted yet...<span class="terminal-cursor"></span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: All Network Packets -->
+            <div class="intercepted-section">
+                <h2>📡 Network Traffic <span class="live">LIVE</span></h2>
+                <div class="packets-list" id="packets-list">
+                    <div class="no-packets" id="no-packets">
+                        <p>Waiting for traffic...<span class="terminal-cursor"></span></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -403,6 +489,7 @@ ATTACKER_TEMPLATE = '''
     <script>
         let attackActive = false;
         let packets = [];
+        let messages = [];
 
         function toggleAttack() {
             fetch('/attack/toggle', { method: 'POST' })
@@ -433,9 +520,34 @@ ATTACKER_TEMPLATE = '''
             fetch('/attack/clear', { method: 'POST' })
             .then(() => {
                 packets = [];
+                messages = [];
                 document.getElementById('packets-list').innerHTML = 
                     '<div class="no-packets" id="no-packets"><p>Waiting for traffic...<span class="terminal-cursor"></span></p></div>';
+                document.getElementById('messages-list').innerHTML = 
+                    '<div class="no-packets" id="no-messages"><p>No chat messages intercepted yet...<span class="terminal-cursor"></span></p></div>';
             });
+        }
+
+        function addMessage(msg) {
+            const container = document.getElementById('messages-list');
+            const noMessages = document.getElementById('no-messages');
+            if (noMessages) noMessages.remove();
+
+            const div = document.createElement('div');
+            div.className = 'message-item' + (msg.encrypted ? ' encrypted' : '');
+            
+            const statusClass = msg.encrypted ? 'protected' : 'vulnerable';
+            const statusText = msg.encrypted ? '🔒 PROTECTED - Cannot read!' : '⚠️ EXPOSED - Message visible!';
+            
+            div.innerHTML = `
+                <div class="msg-header">
+                    <span class="sender">From: ${msg.src_ip}</span>
+                    <span class="msg-time">${msg.time}</span>
+                </div>
+                <div class="msg-content">${escapeHtml(msg.content)}</div>
+                <span class="status-badge ${statusClass}">${statusText}</span>
+            `;
+            container.insertBefore(div, container.firstChild);
         }
 
         function addPacket(pkt) {
@@ -448,17 +560,17 @@ ATTACKER_TEMPLATE = '''
             if (pkt.encrypted) {
                 classes += ' encrypted';
             } else if (pkt.is_chat) {
-                classes += ' chat-msg';
+                classes += ' plaintext';
             }
             div.className = classes;
             
             div.innerHTML = `
-                <div class="header">
+                <div class="pkt-header">
                     <span class="time">${pkt.time}</span>
                     <span class="type">${pkt.type}</span>
                 </div>
                 <div class="content">${escapeHtml(pkt.content)}</div>
-                <div class="meta">${pkt.src_ip} → ${pkt.dst_ip} | ${pkt.src_mac}</div>
+                <div class="meta">${pkt.src_mac}</div>
             `;
             container.insertBefore(div, container.firstChild);
         }
@@ -473,17 +585,25 @@ ATTACKER_TEMPLATE = '''
             fetch('/attack/stats')
             .then(res => res.json())
             .then(data => {
-                document.getElementById('packets-intercepted').textContent = data.packets_intercepted;
+                document.getElementById('plaintext-count').textContent = data.plaintext_count;
+                document.getElementById('encrypted-count').textContent = data.encrypted_count;
                 document.getElementById('arp-spoofs').textContent = data.arp_spoofs_sent;
-                document.getElementById('messages-captured').textContent = data.messages_captured;
                 attackActive = data.attack_active;
                 updateAttackButton();
 
-                // Add new packets
+                // Add new packets to right column
                 data.new_packets.forEach(pkt => {
                     if (!packets.find(p => p.id === pkt.id)) {
                         packets.push(pkt);
                         addPacket(pkt);
+                        
+                        // If it's a chat message, also add to left column
+                        if (pkt.is_chat) {
+                            if (!messages.find(m => m.id === pkt.id)) {
+                                messages.push(pkt);
+                                addMessage(pkt);
+                            }
+                        }
                     }
                 });
             });
@@ -960,10 +1080,14 @@ def clear_attack_log():
 @app.route('/attack/stats')
 def get_attack_stats():
     messages_captured = sum(1 for p in chat_state['intercepted_packets'] if p.get('is_chat'))
+    plaintext_count = sum(1 for p in chat_state['intercepted_packets'] if p.get('is_chat') and not p.get('encrypted'))
+    encrypted_count = sum(1 for p in chat_state['intercepted_packets'] if p.get('is_chat') and p.get('encrypted'))
     return jsonify({
         'packets_intercepted': chat_state['packets_intercepted'],
         'arp_spoofs_sent': chat_state['arp_spoofs_sent'],
         'messages_captured': messages_captured,
+        'plaintext_count': plaintext_count,
+        'encrypted_count': encrypted_count,
         'attack_active': chat_state['attack_active'],
         'new_packets': chat_state['intercepted_packets'][-50:]  # Last 50 packets
     })
@@ -1146,8 +1270,14 @@ def main():
     parser.add_argument("-g", "--victim2", help="Second victim IP (required for attacker)")
     parser.add_argument("--mode", choices=['sender', 'receiver', 'attacker'], default='receiver',
                         help="Chat mode: sender, receiver, or attacker")
-    parser.add_argument("-p", "--port", type=int, default=5000, help="Web server port")
+    parser.add_argument("-p", "--port", type=int, help="Web server port (default: receiver=5000, sender=5001, attacker=5002)")
     args = parser.parse_args()
+    
+    # Set default port based on mode
+    if args.port:
+        port = args.port
+    else:
+        port = {'receiver': 5000, 'sender': 5001, 'attacker': 5002}[args.mode]
     
     # Set mode
     chat_state['mode'] = args.mode
@@ -1232,11 +1362,11 @@ def main():
             print(f"  Target IP: {chat_state['target_ip']}")
             print(f"  Target MAC: {chat_state['target_mac']}")
     print(f"{'='*60}")
-    print(f"\n  🌐 Open your browser to: http://localhost:{args.port}")
+    print(f"\n  🌐 Open your browser to: http://localhost:{port}")
     print(f"\n  Press Ctrl+C to exit\n")
     
     # Start Flask server
-    app.run(host='0.0.0.0', port=args.port, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
 
 
 if __name__ == "__main__":
