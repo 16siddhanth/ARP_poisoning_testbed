@@ -33,7 +33,7 @@ except ImportError:
     print("ERROR: Scapy not installed. Run: pip install scapy")
     sys.exit(1)
 
-from core.network_utils import get_interface_info, get_gateway_info
+from core.network_utils import get_interface_info
 
 
 class ARPDefender:
@@ -77,22 +77,54 @@ class ARPDefender:
         try:
             if self.platform == "darwin":  # macOS
                 cmd = ["sudo", "arp", "-s", ip, mac]
+                subprocess.run(cmd, check=True, capture_output=True)
             elif self.platform == "linux":
                 cmd = ["sudo", "arp", "-s", ip, mac]
+                subprocess.run(cmd, check=True, capture_output=True)
             elif self.platform == "windows":
-                # Windows requires interface index
-                cmd = ["netsh", "interface", "ip", "add", "neighbors",
-                       self.interface, ip, mac.replace(":", "-")]
+                # Windows: use netsh with interface index or arp -s
+                # First try to get interface name from index
+                mac_formatted = mac.replace(":", "-")
+                
+                # Try using arp -s first (simpler)
+                try:
+                    cmd = ["arp", "-s", ip, mac_formatted]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+                    if result.returncode == 0:
+                        print(f"[✓] Static ARP entry added successfully")
+                        self.arp_table[ip] = mac
+                        return True
+                except:
+                    pass
+                
+                # Try netsh with common interface names
+                for iface_name in ["Wi-Fi", "Ethernet", "Local Area Connection", "Wireless Network Connection"]:
+                    try:
+                        cmd = ["netsh", "interface", "ip", "add", "neighbors", iface_name, ip, mac_formatted]
+                        result = subprocess.run(cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            print(f"[✓] Static ARP entry added via {iface_name}")
+                            self.arp_table[ip] = mac
+                            return True
+                    except:
+                        continue
+                
+                print(f"[!] Could not add static ARP entry automatically.")
+                print(f"[!] Run this command manually as Administrator:")
+                print(f"    netsh interface ip add neighbors \"Wi-Fi\" {ip} {mac_formatted}")
+                print(f"    OR: arp -s {ip} {mac_formatted}")
+                self.arp_table[ip] = mac  # Still track it for detection
+                return False
             else:
                 print(f"[!] Unsupported platform: {self.platform}")
                 return False
                 
-            subprocess.run(cmd, check=True, capture_output=True)
             print(f"[✓] Static ARP entry added successfully")
             self.arp_table[ip] = mac
             return True
         except subprocess.CalledProcessError as e:
             print(f"[✗] Failed to add static entry: {e}")
+            print(f"[!] Try running as Administrator")
             return False
         except Exception as e:
             print(f"[✗] Error: {e}")
