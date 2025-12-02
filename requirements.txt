@@ -2,6 +2,9 @@
 scapy>=2.5.0
 netifaces>=0.11.0
 
+# Web UI
+flask>=3.0.0
+
 # Encryption
 cryptography>=41.0.0
 
