@@ -26,6 +26,10 @@ sudo python scripts/1_chat_sender.py -i en0 -t 192.168.1.20
 ```bash
 sudo python scripts/1_chat_receiver.py -i en0
 ```
+ python -c "from scapy.all import get_if_list, conf; print('\n'.join(get_if_list())); print(f'\nDefault: {conf.iface}')"
+ copy default
+
+python scripts/1_chat_receiver.py -i "\Device\NPF_{744EB904-71EE-46B0-A10D-0E3505BE2D2C}" 
 
 Type messages on Laptop A → They appear on Laptop B ✓
 

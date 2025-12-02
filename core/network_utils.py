@@ -125,9 +125,17 @@ def get_interface_info(interface: str) -> Optional[InterfaceInfo]:
     Returns:
         InterfaceInfo object or None if interface not found.
     """
+    # Direct match first
     for iface in get_interfaces():
         if iface.name == interface:
             return iface
+
+    # Windows Npcap device fallback
+    if interface.startswith(r"\\Device\\NPF_"):
+        # Return first valid non-loopback interface
+        for iface in get_interfaces():
+            if iface.ip and iface.ip != "127.0.0.1" and iface.ip != "0.0.0.0":
+                return iface
     return None
 
 
