@@ -9,6 +9,14 @@ pip install scapy netifaces matplotlib
 
 **On Windows:** Also install [Npcap](https://npcap.com)
 
+**Find your network interface name:**
+```bash
+python -c "from scapy.all import get_if_list, conf; print('\n'.join(get_if_list())); print(f'\nDefault: {conf.iface}')"
+```
+**Copy default then run**
+```bash
+python scripts/1_chat_receiver.py -i "Default_name_here"
+```
 ---
 
 ## Demo Flow
