@@ -10,10 +10,17 @@ Usage:
     Receiver: python scripts/web_chat.py -i <interface> --mode receiver
     Attacker: python scripts/web_chat.py -i <interface> -v <victim1_ip> -g <victim2_ip> --mode attacker
     
+    Defender (separate script - run as Administrator for protection):
+        python scripts/3_defender.py -i <interface>
+        python scripts/3_defender.py -i <interface> --protect <ip> --mac <real_mac>
+    
 Examples (Windows):
     python scripts/web_chat.py -i "\Device\NPF_{GUID}" --mode receiver
     python scripts/web_chat.py -i "\Device\NPF_{GUID}" -t 172.20.10.20 --mode sender
     python scripts/web_chat.py -i "\Device\NPF_{GUID}" -v 172.20.10.10 -g 172.20.10.20 --mode attacker
+    
+    # Defender (run in separate terminal, requires Administrator for static ARP)
+    python scripts/3_defender.py -i "\Device\NPF_{GUID}" --protect 192.168.1.6 --mac 0a:1b:47:97:bf:b2
 """
 
 import sys
