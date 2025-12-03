@@ -209,7 +209,10 @@ def get_gateway(interface: str = None) -> Optional[str]:
 def resolve_mac(ip_address: str, interface: str = None, 
                 timeout: float = 2.0) -> Optional[str]:
     """
-    Resolve an IP address to its MAC address using ARP.
+    Resolve an IP address to its MAC address using ARP cache.
+    
+    This function checks the ARP cache FIRST to pick up any poisoned entries,
+    only falling back to active ARP resolution if cache is empty.
     
     Args:
         ip_address: Target IP address.
@@ -219,7 +222,12 @@ def resolve_mac(ip_address: str, interface: str = None,
     Returns:
         MAC address string or None if resolution failed.
     """
-    # First, try to ping to populate ARP cache
+    # FIRST: Check ARP cache (picks up poisoned entries!)
+    mac = _check_arp_cache(ip_address)
+    if mac:
+        return mac
+    
+    # If not in cache, ping to populate it
     system = platform.system().lower()
     try:
         if system == 'windows':
@@ -231,30 +239,25 @@ def resolve_mac(ip_address: str, interface: str = None,
     except:
         pass
     
-    if not SCAPY_AVAILABLE:
-        # Fallback: check ARP cache
-        return _check_arp_cache(ip_address)
-    
-    try:
-        # Create ARP request
-        arp_request = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip_address)
-        
-        # Send and receive
-        if interface:
-            answered, _ = srp(arp_request, iface=interface, timeout=timeout, 
-                             verbose=False)
-        else:
-            answered, _ = srp(arp_request, timeout=timeout, verbose=False)
-        
-        if answered:
-            return answered[0][1].hwsrc
-    except Exception as e:
-        print(f"[DEBUG] ARP resolution error: {e}")
-    
-    # Fallback to ARP cache
+    # Check cache again after ping
     mac = _check_arp_cache(ip_address)
     if mac:
         return mac
+    
+    # Only send ARP request as last resort
+    if SCAPY_AVAILABLE:
+        try:
+            arp_request = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=ip_address)
+            if interface:
+                answered, _ = srp(arp_request, iface=interface, timeout=timeout, 
+                                 verbose=False)
+            else:
+                answered, _ = srp(arp_request, timeout=timeout, verbose=False)
+            
+            if answered:
+                return answered[0][1].hwsrc
+        except Exception as e:
+            print(f"[DEBUG] ARP resolution error: {e}")
     
     return None
 

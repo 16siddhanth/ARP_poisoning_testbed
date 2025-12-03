@@ -62,12 +62,33 @@ class SimpleChatSender:
         self.our_mac = info.mac
         self.our_ip = info.ip
         
-        # Get target MAC using ARP
+        # Get target MAC from ARP cache (to pick up poisoned entries!)
         print(f"Resolving MAC address for {target_ip}...")
-        self.target_mac = getmacbyip(target_ip)
+        # Use ARP cache lookup instead of fresh ARP request
+        self.target_mac = self._get_mac_from_cache(target_ip)
+        if not self.target_mac:
+            # Fallback to scapy if cache lookup fails
+            self.target_mac = getmacbyip(target_ip)
         if not self.target_mac:
             print(f"Warning: Could not resolve MAC for {target_ip}, using broadcast")
             self.target_mac = "ff:ff:ff:ff:ff:ff"
+    
+    def _get_mac_from_cache(self, ip_address: str) -> str:
+        """Get MAC from ARP cache (picks up poisoned entries)."""
+        import subprocess
+        try:
+            result = subprocess.run(['arp', '-a', ip_address], 
+                                   capture_output=True, text=True)
+            for line in result.stdout.split('\n'):
+                if ip_address in line:
+                    # Windows format: IP  MAC  Type
+                    parts = line.split()
+                    for part in parts:
+                        if '-' in part and len(part) == 17:
+                            return part.replace('-', ':').lower()
+        except:
+            pass
+        return None
             
         print(f"\n{'='*60}")
         print(f"  ARP CHAT SENDER")

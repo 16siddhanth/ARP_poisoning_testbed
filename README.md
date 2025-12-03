@@ -365,3 +365,8 @@ by Aayush Majumdar, Shruti Raj, and T. Subbulakshmi
 ## License
 
 MIT License - See LICENSE file for details.
+
+get mac
+Get-NetAdapter | Format-Table Name, Status, MacAddress; ipconfig | Select-String -Pattern "Ethernet|IPv4" | Select-Object -First 6
+then for interface match
+python -c "from scapy.all import get_if_list, get_if_hwaddr; [print(i, get_if_hwaddr(i)) for i in get_if_list() if 'NPF' in i and 'Loopback' not in i]"
